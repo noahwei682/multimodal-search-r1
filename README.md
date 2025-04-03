@@ -1,5 +1,12 @@
 # Multimodal-Search-R1: Incentivizing LMMs to Search
 
+We introduce **MMSearch-R1**, an initial effort to equip LMMs with active image search capabilities through an end-to-end RL framework. Our goal is to train models not only to determine when to invoke the image search tool but also to effectively extract, synthesize, and utilize relevant information to support downstream reasoning. This work represents a foundational step toward enabling LMMs to dynamically interact with external tools in a goal-directed manner, thereby enhancing their performance on long-tailed and knowledge-intensive VQA tasks.
+
+![Main Results](./asset/results.png)
+
+## News
+**[25.04.03]** We’ve released a [**blog**](https://kimingng.notion.site/MMSearch-R1-Incentivizing-LMMs-to-Search-1bcce992031880b2bc64fde13ef83e2a?pvs=4) introducing the MMSearch-R1 Project in more detail!
+
 ## Installation
 ### Environment Setup
 ```bash
@@ -42,4 +49,4 @@ trainer.val_generations_to_log_to_wandb=64 # num of val generations to log
 After training, use `scripts/model_merger.py` to merge the sharded ckpts to huggingface format.
 
 ## Acknowledgement
-We sincerely thank these repositories for providing helpful open-source resources: [veRL](https://github.com/volcengine/verl), [OpenDeepResearcher](https://github.com/mshumer/OpenDeepResearcher), [cfpark00/verl](https://github.com/cfpark00/verl/tree/multi_turn_rollout), [Search-R1](https://github.com/PeterGriffinJin/Search-R1).
+We sincerely thank these repositories for providing helpful open-source resources: [Qwen2.5-VL](https://github.com/QwenLM/Qwen2.5-VL), [veRL](https://github.com/volcengine/verl), [OpenDeepResearcher](https://github.com/mshumer/OpenDeepResearcher), [cfpark00/verl](https://github.com/cfpark00/verl/tree/multi_turn_rollout), [Search-R1](https://github.com/PeterGriffinJin/Search-R1).

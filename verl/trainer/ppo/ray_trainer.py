@@ -1115,18 +1115,18 @@ class RayPPOTrainer(object):
                 # dump rollout to local folders for debug purpose
                 rollout_logger_dir = self.config.trainer.get('rollout_log_dir',None)
                 if rollout_logger_dir is not None:
-                    log_completions,log_rewards,log_urls,log_vcs = [],[],[],[]
+                    log_completions,log_rewards,log_urls,log_golden_truths = [],[],[],[]
                     for rollout_id,rollout_reward in zip(range(len(batch.batch)),reward_tensor.sum(dim=1)):
                         log_completions.append(self.tokenizer.decode(batch.batch[rollout_id]['input_ids'],skip_special_tokens=True))
                         log_rewards.append(rollout_reward.item())
                         log_urls.append(batch.non_tensor_batch['image_urls'][rollout_id])
-                        log_vcs.append(batch.non_tensor_batch['vcs'][rollout_id])
+                        log_golden_truths.append(str(batch.non_tensor_batch['reward_model'][rollout_id]))
                     table = {
                         "step": [str(self.global_steps)] * len(batch.batch),
                         "completion": log_completions, 
                         "reward": log_rewards,
                         "url":log_urls,
-                        "vc":log_vcs
+                        "golden_truths":log_golden_truths
                     }
                     df = pd.DataFrame(table)
                     if self.config.trainer.train_generations_to_log_to_wandb:

@@ -1,39 +1,63 @@
-# Multimodal-Search-R1: Incentivizing LMMs to Search
+<h1 align="center">Multimodal-Search-R1: Incentivizing LMMs to Search</h1>
 
-We introduce **MMSearch-R1**, an initial effort to equip LMMs with active image search capabilities through an end-to-end RL framework. Our goal is to train models not only to determine when to invoke the image search tool but also to effectively extract, synthesize, and utilize relevant information to support downstream reasoning. This work represents a foundational step toward enabling LMMs to dynamically interact with external tools in a goal-directed manner, thereby enhancing their performance on long-tailed and knowledge-intensive VQA tasks.
+<p align="center">
+  Paper (Soon) ｜ 
+  <a href="https://www.lmms-lab.com/posts/mmsearch_r1">Blog</a> ｜
+  Model & Data (WIP)
+</p>
 
-![Main Results](./asset/results.png)
+## Overview
+<p align="center">
+  <img src="assets/mmsearch_r1_overview.png" alt="Overview of MMSearch-R1" width="800">
+</p>
+
+**MMSearch-R1** is an end-to-end RL framework that enables LMMs to perform on-demand, multi-turn search with real-world multimodal search tools.
 
 ## News
-**[25.04.03]** We’ve released a [**blog**](https://kimingng.notion.site/MMSearch-R1-Incentivizing-LMMs-to-Search-1bcce992031880b2bc64fde13ef83e2a?pvs=4) introducing the MMSearch-R1 Project in more detail!
+- [25.06.18] [Blog](https://www.lmms-lab.com/posts/mmsearch_r1) and code are updated!
+
+## Table of Content
+- [Installation](#installation)
+- [Multimodal Search Tool Implementation](#multimodal-search-tool-implemention)
+- [Data Construction](#data-construction)
+- [Train & Eval](#train--eval)
 
 ## Installation
-### Environment Setup
 ```bash
+# Clone this repo with submodules
+git clone --recurse-submodules https://github.com/EvolvingLMMs-Lab/multimodal-search-r1.git
 cd multimodal-search-r1
 # Init Conda Env
-conda create -n imsearch python=3.9 -y
-conda activate imsearch
-# veRL
-pip3 install -e .
-# flash-attn
-pip3 install flash-attn --no-build-isolation
-# Config wandb
+conda create -n mmsearch_r1 python==3.10 -y
+conda activate mmsearch_r1
+# Install Dependencies
+pip3 install -e ./verl
+pip3 install vllm==0.8.2
+pip3 install transformers==4.51.0
+pip3 install flash-attn==2.7.4.post1
+# Init wandb
 pip3 install wandb
 export WANDB_API_KEY="XXX"
 wandb login $WANDB_API_KEY
 ```
 
-### Search Tool Implemention
-Currently, we reference [OpenDeepResearcher](https://github.com/mshumer/OpenDeepResearcher), which uses [SerpApi](https://serpapi.com/) + [JINA Reader](https://jina.ai/reader/) + LLM summarization to return the most relevant web content related to an image. Before formal training, you need to implement your own search tool pipeline under the `tools/` directory and call it as needed during the multi-turn rollout process.
+## Multimodal Search Tool Implemention
+We draw inspiration from [OpenDeepResearcher]((https://github.com/mshumer/OpenDeepResearcher)), which integrates [SerpApi](https://serpapi.com/), [JINA Reader](https://jina.ai/reader/), and LLM-based summarization to retrieve and condense web content relevant to a given question. Currently, MMSearch-R1 includes two types of search tools: an image search tool and a text search tool.
+- **Image Search Tool:** This tool is built solely on SerpAPI. The model provides the image (via URL or other form) to the tool, which is responsible for retrieving the top-k visually relevant web pages. The tool returns a sequence of interleaved thumbnails and titles extracted from those pages.
+- **Text Search Tool:** This tool combines SerpAPI, JINA Reader, and Qwen3-32B for summarization. The model submits a text query, and SerpAPI retrieves the top-k relevant web page URLs. JINA Reader parses and cleans the content of those pages, and Qwen3-32B generates summaries based on the original query. The tool ultimately returns a list of summarized passages from the top-k relevant webpages with their respective links.
+
+⚠️⚠️⚠️ Before initiating formal training, you are expected to build your own search tool pipeline under the `mmsearch_r1/utils/tools/` directory and invoke it appropriately during the multi-turn rollout process.
+
+## Data Construction
+Both the training and validation datasets follow the format defined by veRL. We provide an example dataset under directory `mmsearch_r1/data` as a reference to help you prepare your own training data.
 
 ## Train & Eval
 We recommend use the command below for unified training and evaluation:
 ```bash
-bash scripts/run_imsearch_grpo.sh
+bash mmsearch_r1/scripts/run_mmsearch_r1_grpo.sh
 ```
 We highlight the important configurations for training the Multi-Round Search LMMs:
-- `actor_rollout_ref.rollout.name`: should be `vllm_multiturn_imsearch` for multi-turn search rollout;
+- `actor_rollout_ref.rollout.name`: should be `vllm_multiturn_mmsearch` for multi-turn search rollout;
 - `actor_rollout_ref.actor.use_multi_turn_response_mask`: should be `True`, as we use it to refine the original `response_mask` for accurate loss calculation.
 - `actor_rollout_ref.rollout.max_gen_round`: The max number of turns during rollout;
 - `data.max_response_length`: The max response length for each turn;
@@ -42,11 +66,16 @@ We highlight the important configurations for training the Multi-Round Search LM
 For evaluation only, configure these parameters in the above script:
 ```bash
 ...
-trauner.val_files=${path_to_val_data}
-+trainer.val_only=True \
-trainer.val_generations_to_log_to_wandb=64 # num of val generations to log
+trainer.val_files=${path_to_val_data} \
+trainer.val_only=True \
+trainer.val_only_save_dir=${path_to_save_dir} \
+trainer.val_generations_to_log_to_wandb=64 # num of val generations to log, this should be larger than the size of val dataset for complete saving
 ```
-After training, use `scripts/model_merger.py` to merge the sharded ckpts to huggingface format.
+The model's responses will be saved in JSON format under `${path_to_save_dir}`, which can be used for subsequent analysis and evaluation.
+
+## ToDo
+- [ ] Model and Datasets
+- [ ] Inference script example
 
 ## Acknowledgement
-We sincerely thank these repositories for providing helpful open-source resources: [Qwen2.5-VL](https://github.com/QwenLM/Qwen2.5-VL), [veRL](https://github.com/volcengine/verl), [OpenDeepResearcher](https://github.com/mshumer/OpenDeepResearcher), [cfpark00/verl](https://github.com/cfpark00/verl/tree/multi_turn_rollout), [Search-R1](https://github.com/PeterGriffinJin/Search-R1).
+We sincerely thank these repositories for providing helpful open-source resources: [Qwen2.5-VL](https://github.com/QwenLM/Qwen2.5-VL), [veRL](https://github.com/volcengine/verl), [OpenDeepResearcher](https://github.com/mshumer/OpenDeepResearcher), [cfpark00/verl](https://github.com/cfpark00/verl/tree/multi_turn_rollout), [Search-R1](https://github.com/PeterGriffinJin/Search-R1), [MMSearch](https://github.com/CaraJ7/MMSearch).

@@ -1,7 +1,7 @@
 <h1 align="center">Multimodal-Search-R1: Incentivizing LMMs to Search</h1>
 
 <p align="center">
-  Paper (Soon) ｜ 
+  <a href="https://arxiv.org/abs/2506.20670">Paper</a> ｜ 
   <a href="https://www.lmms-lab.com/posts/mmsearch_r1">Blog</a> ｜
   Model & Data (WIP)
 </p>
@@ -14,6 +14,7 @@
 **MMSearch-R1** is an end-to-end RL framework that enables LMMs to perform on-demand, multi-turn search with real-world multimodal search tools.
 
 ## News
+- [25.06.26] Paper released on [ArXiv](https://arxiv.org/abs/2506.20670) and [Huggingface](https://huggingface.co/papers/2506.20670)!
 - [25.06.18] [Blog](https://www.lmms-lab.com/posts/mmsearch_r1) and code are updated!
 
 ## Table of Content

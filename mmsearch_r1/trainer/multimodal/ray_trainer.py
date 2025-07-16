@@ -26,7 +26,6 @@ from verl.trainer.ppo.metric_utils import compute_timing_metrics, reduce_metrics
 from verl.trainer.ppo.ray_trainer import (
     AdvantageEstimator,
     Role,
-    _timer,
     apply_kl_penalty,
 )
 from verl.utils.checkpoint.checkpoint_manager import find_latest_ckpt_path

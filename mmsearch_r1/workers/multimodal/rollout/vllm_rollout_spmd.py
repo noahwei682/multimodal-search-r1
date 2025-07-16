@@ -32,14 +32,21 @@ from verl import DataProto
 from verl.third_party.vllm import vllm_version
 from verl.utils import hf_processor
 from verl.utils.torch_functional import pad_sequence_to_length
-from verl.workers.rollout.vllm_rollout.vllm_rollout_spmd import (
-    _repeat_interleave,
-    vLLMRollout,
-)
+from verl.workers.rollout.vllm_rollout.vllm_rollout_spmd import vLLMRollout
 
 from mmsearch_r1.utils.tools.image_search import call_image_search
 from mmsearch_r1.utils.tools.text_search import call_text_search
 from mmsearch_r1.utils.torch_functional import get_final_eos_mask
+
+# Define our own repeat_interleave function
+def _repeat_interleave(x, repeats, dim=None):
+    """
+    Repeat elements of a tensor along a given dimension.
+    """
+    if dim is None:
+        return torch.repeat_interleave(x, repeats)
+    else:
+        return torch.repeat_interleave(x, repeats, dim=dim)
 
 # TODO
 # 1. support pp in vllm

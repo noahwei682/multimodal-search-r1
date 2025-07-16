@@ -82,6 +82,7 @@ class RLHFDataset(Dataset):
         if not isinstance(parquet_files, (List, ListConfig)):
             parquet_files = [parquet_files]
 
+        print(f"Initializing RLHFDataset with files: {parquet_files}")
         self.parquet_files = copy.deepcopy(parquet_files)
         self.original_parquet_files = copy.deepcopy(parquet_files)  # use for resume
         self.cache_dir = os.path.expanduser(cache_dir)
@@ -110,13 +111,24 @@ class RLHFDataset(Dataset):
 
         parquet_files = self.parquet_files if not use_origin_parquet else self.original_parquet_files
         for i, parquet_file in enumerate(parquet_files):
+            print(f"Downloading file {parquet_file} to local cache")
             self.parquet_files[i] = copy_to_local(src=parquet_file, cache_dir=self.cache_dir)
+            print(f"File downloaded to: {self.parquet_files[i]}")
 
     def _read_files_and_tokenize(self):
         dataframes = []
         for parquet_file in self.parquet_files:
             # read parquet files and cache
-            dataframe = pd.read_parquet(parquet_file)
+            print(f"Reading parquet file: {parquet_file}")
+            try:
+                dataframe = pd.read_parquet(parquet_file)
+                print(f"File {parquet_file} loaded successfully. Shape: {dataframe.shape}")
+                print(f"Columns: {dataframe.columns.tolist()}")
+                if len(dataframe) > 0:
+                    print(f"First row prompt: {dataframe.iloc[0][self.prompt_key]}")
+            except Exception as e:
+                print(f"Error reading file {parquet_file}: {str(e)}")
+                raise
             dataframes.append(dataframe)
         self.dataframe = pd.concat(dataframes)
 
@@ -128,6 +140,7 @@ class RLHFDataset(Dataset):
 
         # HACK: update prompt (hard rule for qwen-vl model)
         if self.user_prompt_round_1 is not None:
+            print(f"Loading user prompt from: {self.user_prompt_round_1}")
             with open(
                 self.user_prompt_round_1, 'rb'
             ) as file:  # NOTE: we use pickle since strings with "\n" can't be correctly passed don't know why
@@ -137,6 +150,22 @@ class RLHFDataset(Dataset):
                 lambda x: np.array([{'content': user_prompt_round_1 + x[0]['content'], 'role': 'user'}])
             )
 
+        filtered_len = len(self.dataframe[
+            self.dataframe.apply(
+                lambda doc: len(tokenizer.apply_chat_template(doc[prompt_key], add_generation_prompt=True))
+                <= self.max_prompt_length,
+                axis=1,
+            )
+        ])
+        print(f'filtered dataset len: {filtered_len}')
+        if filtered_len == 0:
+            print("WARNING: All samples were filtered out! Check max_prompt_length and tokenization")
+            # Print a sample of original prompts and their lengths
+            for idx, row in self.dataframe.head().iterrows():
+                prompt_len = len(tokenizer.apply_chat_template(row[prompt_key], add_generation_prompt=True))
+                print(f"Sample {idx} prompt length: {prompt_len} (max allowed: {self.max_prompt_length})")
+                print(f"Sample {idx} prompt: {row[prompt_key]}")
+
         self.dataframe = self.dataframe[
             self.dataframe.apply(
                 lambda doc: len(tokenizer.apply_chat_template(doc[prompt_key], add_generation_prompt=True))
@@ -145,7 +174,7 @@ class RLHFDataset(Dataset):
             )
         ]
 
-        print(f'filter dataset len: {len(self.dataframe)}')
+        print(f'final dataset len: {len(self.dataframe)}')
 
     def resume_dataset_state(self):
         self.serialize_dataset = False if hasattr(self, 'original_parquet_files') else True

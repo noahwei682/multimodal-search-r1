@@ -1,43 +1,161 @@
+import asyncio
+import json
+from openai import OpenAI
+import aiohttp
+
+# Configuration Constants
+OPENROUTER_API_KEY = "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"
+SERPAPI_API_KEY = "7f39cccc407fb2e59ce52917d178354931cd5884062b2add658a9f1bf5943508"
+JINA_API_KEY = "jina_c948193913304f68b5c6b68cf75e1987t-wKv5qheig7zcBRcrBDPmFDrER7"
+
+# Endpoints
+OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+SERPAPI_URL = "https://serpapi.com/search"
+JINA_BASE_URL = "https://r.jina.ai/"
+
+# Default LLM model
+DEFAULT_MODEL = "qwen/qwen3-32b:free"
+
+# Initialize OpenAI client
+client = OpenAI(
+    base_url=OPENROUTER_BASE_URL,
+    api_key=OPENROUTER_API_KEY,
+    default_headers={
+        "HTTP-Referer": "https://github.com/mshumer/OpenDeepResearcher",
+        "X-Title": "OpenDeepResearcher"
+    }
+)
+
+async def perform_search_async(query):
+    """
+    Asynchronously perform a Google search using SERPAPI for the given query.
+    Returns a list of result URLs.
+    """
+    params = {
+        "q": query,
+        "api_key": SERPAPI_API_KEY,
+        "engine": "google"
+    }
+    async with aiohttp.ClientSession() as session:
+        try:
+            async with session.get(SERPAPI_URL, params=params) as resp:
+                if resp.status == 200:
+                    results = await resp.json()
+                    if "organic_results" in results:
+                        links = [item.get("link") for item in results["organic_results"] if "link" in item]
+                        return links[:3]  # Limit to top 3 results
+                    else:
+                        print("No organic results in SERPAPI response.")
+                        return []
+                else:
+                    text = await resp.text()
+                    print(f"SERPAPI error: {resp.status} - {text}")
+                    return []
+        except Exception as e:
+            print("Error performing SERPAPI search:", e)
+            return []
+
+async def fetch_webpage_text_async(url):
+    """
+    Asynchronously retrieve the text content of a webpage using Jina.
+    """
+    full_url = f"{JINA_BASE_URL}{url}"
+    headers = {
+        "Authorization": f"Bearer {JINA_API_KEY}"
+    }
+    async with aiohttp.ClientSession() as session:
+        try:
+            async with session.get(full_url, headers=headers) as resp:
+                if resp.status == 200:
+                    return await resp.text()
+                else:
+                    text = await resp.text()
+                    print(f"Jina fetch error for {url}: {resp.status} - {text}")
+                    return ""
+        except Exception as e:
+            print("Error fetching webpage text with Jina:", e)
+            return ""
+
+async def summarize_text_async(text_query, page_text):
+    """
+    Use Qwen3-32B to generate a summary of the webpage content relevant to the query.
+    """
+    prompt = (
+        "You are an expert information extractor. Given the user's query and webpage content, "
+        "extract and summarize the most relevant information that helps answer the query. "
+        "Be concise but comprehensive. Include only information that is directly relevant."
+    )
+    messages = [
+        {"role": "system", "content": "You are an expert in extracting and summarizing relevant information."},
+        {"role": "user", "content": f"Query: {text_query}\n\nWebpage Content (first 20000 chars):\n{page_text[:20000]}\n\n{prompt}"}
+    ]
+    
+    try:
+        completion = client.chat.completions.create(
+            model=DEFAULT_MODEL,
+            messages=messages,
+            extra_body={}
+        )
+        return completion.choices[0].message.content.strip()
+    except Exception as e:
+        print("Error generating summary:", e)
+        return ""
+
 def call_text_search(text_query: str):
     """
-    Placeholder function for a text-based search tool.
-
-    This function is intended to perform a text search based on the given query and return
-    a summary of relevant results. The actual implementation has been omitted due to privacy
-    or licensing constraints (e.g., reliance on internal APIs or proprietary data sources).
-
+    Perform text-based search using SerpAPI, JINA Reader, and Qwen3-32B for summarization.
+    
     Args:
         text_query (str): The input query string used for text-based search.
-
+    
     Returns:
-        tool_returned_str (str): A placeholder string simulating ranked search results.
-        tool_stat (dict): A dictionary indicating tool execution status and additional metadata.
+        tool_returned_str (str): A string containing ranked search results with summaries.
+        tool_stat (dict): A dictionary indicating tool execution status and metadata.
     """
+    try:
+        # Run the async search pipeline
+        async def search_pipeline():
+            # Get search results from SerpAPI
+            links = await perform_search_async(text_query)
+            if not links:
+                raise Exception("No search results found")
+            
+            # Fetch and summarize content for each link
+            summaries = []
+            for link in links:
+                # Get webpage content
+                page_text = await fetch_webpage_text_async(link)
+                if page_text:
+                    # Generate summary
+                    summary = await summarize_text_async(text_query, page_text)
+                    if summary:
+                        summaries.append((link, summary))
+            
+            return summaries
 
-    print(
-        "[Warning] You are currently using a *fake* implementation of the text search tool.\n"
-        "This is a placeholder for demonstration purposes only. The actual search logic is not included due to privacy, licensing, or infrastructure constraints.\n"
-        "Please replace this function with your own implementation that connects to a real search backend or API."
-    )
+        # Run the async pipeline
+        summaries = asyncio.run(search_pipeline())
+        
+        # Format the results
+        if summaries:
+            tool_returned_str = "[Text Search Results] Below are the text summaries of the most relevant webpages related to your query, ranked in descending order of relevance:\n\n"
+            for i, (link, summary) in enumerate(summaries, 1):
+                tool_returned_str += f"{i}. {link}\n{summary}\n\n"
+            
+            tool_stat = {
+                "success": True,
+                "num_results": len(summaries),
+            }
+        else:
+            raise Exception("No summaries generated")
 
-    # === Text Search Tool Placeholder ===
-    # Replace the following logic with your actual search backend or retrieval function.
-
-    # Simulated success indicator and dummy results
-    tool_success = True
-    tool_stat = {
-        "success": tool_success,
-        "num_results": 3,
-    }
-
-    if tool_success:
-        tool_returned_str = (
-            "[Text Search Results] Below are the text summaries of the most relevant webpages related to your query, ranked in descending order of relevance:\n"
-            "1. (webpage link) Summary of webpage content...\n"
-            "2. (webpage link) Summary of webpage content...\n"
-            "3. (webpage link) Summary of webpage content...\n"
-        )
-    else:
-        tool_returned_str = "[Text Search Results] There is an error encountered in performing search. Please reason with your own capaibilities."
+    except Exception as e:
+        print(f"Error in text search: {str(e)}")
+        tool_returned_str = "[Text Search Results] There is an error encountered in performing search. Please reason with your own capabilities."
+        tool_stat = {
+            "success": False,
+            "num_results": 0,
+            "error": str(e)
+        }
 
     return tool_returned_str, tool_stat

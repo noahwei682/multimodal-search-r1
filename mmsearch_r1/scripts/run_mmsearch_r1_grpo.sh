@@ -4,7 +4,7 @@
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 export CUDA_LAUNCH_BLOCKING=1
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:False
-
+export RAY_memory_usage_threshold=0.98
 
 # Get the absolute path of the workspace
 WORKSPACE_DIR=$(pwd)
@@ -45,19 +45,19 @@ python3 -m mmsearch_r1.trainer.multimodal.main_ppo \
     actor_rollout_ref.rollout.log_prob_micro_batch_size_per_gpu=1 \
     actor_rollout_ref.rollout.tensor_model_parallel_size=4 \
     actor_rollout_ref.rollout.name=vllm_multiturn_mmsearch \
-    actor_rollout_ref.rollout.gpu_memory_utilization=0.85 \
+    actor_rollout_ref.rollout.gpu_memory_utilization=0.6 \
     actor_rollout_ref.rollout.max_model_len=4096 \
     actor_rollout_ref.rollout.enable_chunked_prefill=True \
     actor_rollout_ref.rollout.enforce_eager=True \
     actor_rollout_ref.rollout.free_cache_engine=True \
-    actor_rollout_ref.rollout.n=8 \
+    actor_rollout_ref.rollout.n=4 \
     actor_rollout_ref.rollout.max_gen_round=3 \
     actor_rollout_ref.rollout.response_length_total=4096 \
     actor_rollout_ref.rollout.search.topk=5 \
     actor_rollout_ref.rollout.search.image_search_limit=1 \
     actor_rollout_ref.rollout.search.text_search_limit=2 \
     actor_rollout_ref.rollout.search.parallel_tool_call=True \
-    actor_rollout_ref.rollout.search.parallel_tool_call_threads=8 \
+    actor_rollout_ref.rollout.search.parallel_tool_call_threads=4 \
     actor_rollout_ref.ref.log_prob_micro_batch_size_per_gpu=1 \
     actor_rollout_ref.ref.fsdp_config.param_offload=True \
     algorithm.kl_ctrl.kl_coef=0.001 \
@@ -65,7 +65,7 @@ python3 -m mmsearch_r1.trainer.multimodal.main_ppo \
     trainer.logger=['console','wandb'] \
     trainer.project_name=WANDB_PROJECT_NAME \
     trainer.experiment_name=WANDB_EXP_NAME \
-    trainer.n_gpus_per_node=8 \
+    trainer.n_gpus_per_node=4 \
     trainer.nnodes=1 \
     trainer.save_freq=100 \
     trainer.test_freq=100 \

@@ -41,12 +41,21 @@ from mmsearch_r1.utils.torch_functional import get_final_eos_mask
 # Define our own repeat_interleave function
 def _repeat_interleave(x, repeats, dim=None):
     """
-    Repeat elements of a tensor along a given dimension.
+    Repeat elements of a tensor or numpy array along a given dimension.
     """
-    if dim is None:
-        return torch.repeat_interleave(x, repeats)
+    if isinstance(x, np.ndarray):
+        # Handle numpy array
+        if dim is None:
+            # Flatten array, repeat each element, then reshape
+            return np.repeat(x, repeats)
+        else:
+            return np.repeat(x, repeats, axis=dim)
     else:
-        return torch.repeat_interleave(x, repeats, dim=dim)
+        # Handle torch tensor
+        if dim is None:
+            return torch.repeat_interleave(x, repeats)
+        else:
+            return torch.repeat_interleave(x, repeats, dim=dim)
 
 # TODO
 # 1. support pp in vllm
@@ -397,6 +406,14 @@ class vLLMRollout_MultiTurn_MMSearch_R1(vLLMRollout):
                                 + self.user_prompt_after_image_search
                             )
 
+                    # Ensure we have search results
+                    if not locals().get('search_result_message'):
+                        raise RuntimeError(
+                            f"No valid search results found. Text search status: {'[Text Search Results]' in search_result_txt}, "
+                            f"Image search status: {'[Image Search Results]' in search_result_txt}. "
+                            f"Search result text: {search_result_txt}"
+                        )
+
                     search_result_message = (
                         "<|im_start|>user\n" + search_result_message + "<|im_end|>\n<|im_start|>assistant\n"
                     )
@@ -488,6 +505,10 @@ class vLLMRollout_MultiTurn_MMSearch_R1(vLLMRollout):
             )
 
         # All for 1st USER prompt
+        # Ensure idx has correct shape (B*R, max_prompt_length)
+        if idx.dim() == 1:
+            idx = idx.unsqueeze(0)  # Add batch dimension if missing
+
         if self.config.n > 1 and do_sample:
             idx = _repeat_interleave(idx, self.config.n)  # (B, max_prompt_length) -> (B*R, max_prompt_length)
             attention_mask = _repeat_interleave(attention_mask, self.config.n)
@@ -510,6 +531,11 @@ class vLLMRollout_MultiTurn_MMSearch_R1(vLLMRollout):
                 input_prompt_generation_mask, self.config.n
             )  # (B, max_prompt_length) -> (B*R, max_prompt_length), all 0
 
+        print(f"Debug - idx shape: {idx.shape}, response shape: {response.shape}")
+        print(f"Debug - idx type: {type(idx)}, response type: {type(response)}")
+        print(f"Debug - idx device: {idx.device}, response device: {response.device}")
+
+        # Create seq tensor by concatenating idx and response
         seq = torch.cat([idx, response], dim=-1)  # (B*R, max_prompt_length+max_response_length_total)
 
         response_length = response.size(1)

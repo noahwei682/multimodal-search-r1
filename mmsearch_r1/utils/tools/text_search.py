@@ -98,7 +98,13 @@ async def summarize_text_async(text_query, page_text):
         )
         return completion.choices[0].message.content.strip()
     except Exception as e:
-        print("Error generating summary:", e)
+        error_msg = str(e)
+        if "401" in error_msg:
+            print(f"Authentication failed: {error_msg}. Please check if your API keys are valid and have sufficient permissions.")
+        elif "429" in error_msg:
+            print(f"Rate limit exceeded: {error_msg}. Please check your API usage limits.")
+        else:
+            print(f"Error generating summary: {error_msg}")
         return ""
 
 def call_text_search(text_query: str):
@@ -118,18 +124,26 @@ def call_text_search(text_query: str):
             # Get search results from SerpAPI
             links = await perform_search_async(text_query)
             if not links:
-                raise Exception("No search results found")
+                raise Exception("No search results found from SerpAPI")
             
             # Fetch and summarize content for each link
             summaries = []
             for link in links:
                 # Get webpage content
                 page_text = await fetch_webpage_text_async(link)
-                if page_text:
-                    # Generate summary
-                    summary = await summarize_text_async(text_query, page_text)
-                    if summary:
-                        summaries.append((link, summary))
+                if not page_text:
+                    print(f"Failed to fetch content from {link}")
+                    continue
+                
+                # Generate summary
+                summary = await summarize_text_async(text_query, page_text)
+                if summary:
+                    summaries.append((link, summary))
+                else:
+                    print(f"Failed to generate summary for {link}")
+            
+            if not summaries:
+                raise Exception("Failed to generate any valid summaries. Please check API keys and permissions.")
             
             return summaries
 
@@ -150,12 +164,19 @@ def call_text_search(text_query: str):
             raise Exception("No summaries generated")
 
     except Exception as e:
-        print(f"Error in text search: {str(e)}")
-        tool_returned_str = "[Text Search Results] There is an error encountered in performing search. Please reason with your own capabilities."
+        error_msg = str(e)
+        print(f"Error in text search: {error_msg}")
+        if "401" in error_msg:
+            tool_returned_str = "[Text Search Results] Authentication failed. Please check API keys and permissions."
+        elif "429" in error_msg:
+            tool_returned_str = "[Text Search Results] Rate limit exceeded. Please try again later."
+        else:
+            tool_returned_str = f"[Text Search Results] Search failed: {error_msg}"
+        
         tool_stat = {
             "success": False,
             "num_results": 0,
-            "error": str(e)
+            "error": error_msg
         }
 
     return tool_returned_str, tool_stat

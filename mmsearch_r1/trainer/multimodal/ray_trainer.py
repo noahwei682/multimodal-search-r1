@@ -6,6 +6,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pprint import pprint
 from typing import Type
+from contextlib import contextmanager
+import time
 
 import numpy as np
 import pandas as pd
@@ -40,6 +42,14 @@ from mmsearch_r1.utils.dataset.mm_rl_dataset import RLHFDataset, collate_fn
 
 WorkerType = Type[Worker]
 import torch
+
+
+@contextmanager
+def _timer(name, timing_dict):
+    """Context manager for timing code blocks"""
+    start = time.time()
+    yield
+    timing_dict[name] = time.time() - start
 
 
 def _compute_response_info(batch):

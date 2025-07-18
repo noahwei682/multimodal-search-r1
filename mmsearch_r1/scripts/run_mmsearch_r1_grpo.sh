@@ -43,7 +43,7 @@ python3 -m mmsearch_r1.trainer.multimodal.main_ppo \
     +actor_rollout_ref.actor.fsdp_config.backward_prefetch=BACKWARD_PRE \
     +actor_rollout_ref.actor.fsdp_config.activation_checkpointing=True \
     actor_rollout_ref.rollout.log_prob_micro_batch_size_per_gpu=1 \
-    actor_rollout_ref.rollout.tensor_model_parallel_size=4 \
+    actor_rollout_ref.rollout.tensor_model_parallel_size=2 \
     actor_rollout_ref.rollout.name=vllm_multiturn_mmsearch \
     actor_rollout_ref.rollout.gpu_memory_utilization=0.6 \
     actor_rollout_ref.rollout.max_model_len=4096 \
@@ -57,7 +57,7 @@ python3 -m mmsearch_r1.trainer.multimodal.main_ppo \
     actor_rollout_ref.rollout.search.image_search_limit=1 \
     actor_rollout_ref.rollout.search.text_search_limit=2 \
     actor_rollout_ref.rollout.search.parallel_tool_call=True \
-    actor_rollout_ref.rollout.search.parallel_tool_call_threads=4 \
+    actor_rollout_ref.rollout.search.parallel_tool_call_threads=2 \
     actor_rollout_ref.ref.log_prob_micro_batch_size_per_gpu=1 \
     actor_rollout_ref.ref.fsdp_config.param_offload=True \
     algorithm.kl_ctrl.kl_coef=0.001 \
@@ -65,7 +65,7 @@ python3 -m mmsearch_r1.trainer.multimodal.main_ppo \
     trainer.logger=['console','wandb'] \
     trainer.project_name=WANDB_PROJECT_NAME \
     trainer.experiment_name=WANDB_EXP_NAME \
-    trainer.n_gpus_per_node=4 \
+    trainer.n_gpus_per_node=2 \
     trainer.nnodes=1 \
     trainer.save_freq=100 \
     trainer.test_freq=100 \

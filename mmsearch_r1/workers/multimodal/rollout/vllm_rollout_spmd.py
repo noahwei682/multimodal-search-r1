@@ -225,7 +225,11 @@ class vLLMRollout_MultiTurn_MMSearch_R1(vLLMRollout):
                             idx_to_remove.append(i_gen)
                             print(f"{i_gen} has reached max_image_gen_round {max_image_gen_round}")
                             continue
-                        img_to_search = non_tensor_batch["image_urls"][i_gen]
+                        img_to_search = non_tensor_batch["image_urls"][i_gen] if "image_urls" in non_tensor_batch else None
+                        if not img_to_search:
+                            print(f"[Round #{current_iteration} Rollout ERROR] No valid image URL found for traj {i_gen}, will be removed!!!")
+                            idx_to_remove.append(i_gen)
+                            continue
                         id_search_query_mapping[str(i_gen)] = {"type": "image", "content": img_to_search}
                         id_image_gen_cnt[i_gen] += 1  # Text Gen Constraint
                     # Need to call text search

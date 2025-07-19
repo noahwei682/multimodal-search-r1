@@ -28,19 +28,35 @@ def logprobs_from_logits(logits, labels):
         last_dim = logits.shape[-1]
         logits = logits.reshape(-1, last_dim)
         labels = labels.reshape(-1)
+        
+        # Ensure consistent data type - convert to float32
+        orig_dtype = logits.dtype
+        logits = logits.to(torch.float32)
+        
         output = logprobs_from_logits_flash_attn(logits, labels)
         output = output.view(*batch_dim)
+        
+        # Convert back to original dtype if needed
+        output = output.to(orig_dtype)
     else:
         output = logprobs_from_logits_v2(logits, labels)
     return output
 
 
 def logprobs_from_logits_flash_attn(logits, labels):
+    """
+    Compute log probabilities using flash-attn's cross_entropy_loss.
+    Ensures all computations are done in float32 for stability.
+    """
+    # Ensure inputs are float32
+    if logits.dtype != torch.float32:
+        logits = logits.to(torch.float32)
+    
     output = cross_entropy_loss(logits, labels)
     assert isinstance(
         output, tuple
     ), "please make sure flash-attn>=2.4.3 where cross_entropy_loss returns Tuple[losses, z_losses]."
-    return -output[0]
+    return -output[0]  # Return negative cross entropy as log probability
 
 
 def logprobs_from_logits_naive(logits, labels):

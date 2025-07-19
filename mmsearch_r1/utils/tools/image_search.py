@@ -14,11 +14,15 @@ os.makedirs(CACHE_DIR, exist_ok=True)
 
 def get_cache_path(image_url: str) -> str:
     """Generate a unique cache file path for an image URL."""
+    if not image_url:
+        raise ValueError("image_url cannot be None or empty")
     url_hash = hashlib.md5(image_url.encode()).hexdigest()
     return os.path.join(CACHE_DIR, f"{url_hash}.pkl")
 
 def load_from_cache(image_url: str) -> Optional[Tuple[str, List[Image.Image], Dict]]:
     """Try to load search results from cache."""
+    if not image_url:
+        return None
     cache_path = get_cache_path(image_url)
     if os.path.exists(cache_path):
         try:
@@ -30,6 +34,8 @@ def load_from_cache(image_url: str) -> Optional[Tuple[str, List[Image.Image], Di
 
 def save_to_cache(image_url: str, results: Tuple[str, List[Image.Image], Dict]):
     """Save search results to cache."""
+    if not image_url:
+        return
     cache_path = get_cache_path(image_url)
     try:
         with open(cache_path, 'wb') as f:
@@ -82,6 +88,11 @@ def call_image_search(image_url: str) -> Tuple[str, List[Image.Image], Dict]:
         tool_returned_images (List[PIL.Image.Image]): List of result thumbnails
         tool_stat (dict): Status information about the search
     """
+    # Validate image_url first
+    if not image_url:
+        error_msg = "[Image Search Results] There is an error encountered: image_url cannot be None or empty"
+        return error_msg, [], {"success": False, "error": "invalid_url"}
+
     # Check cache first
     cached_results = load_from_cache(image_url)
     if cached_results:
